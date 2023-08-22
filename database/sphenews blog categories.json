@@ -1,0 +1,177 @@
+[
+  {
+    "stmt": "SELECT * FROM blogapi_category;",
+    "header": [
+      "id",
+      "name",
+      "slug",
+      "description",
+      "is_active",
+      "created",
+      "modified",
+      "parent_id"
+    ],
+    "rows": [
+      [
+        "1",
+        "World News",
+        "world-news",
+        "Stay informed about global events, politics, and international affairs.",
+        "1",
+        "2023-08-13 17:03:41.258128",
+        "2023-08-13 17:03:41.258128",
+        "NULL"
+      ],
+      [
+        "2",
+        "Business & Economy",
+        "business-economy",
+        "Get the latest updates on finance, market trends, and business developments.",
+        "1",
+        "2023-08-13 17:10:33.282127",
+        "2023-08-13 17:10:33.282127",
+        "NULL"
+      ],
+      [
+        "3",
+        "Science & Technology",
+        "science-technology",
+        "Explore the frontiers of science, innovation, and technological advancements.",
+        "1",
+        "2023-08-13 17:11:04.536131",
+        "2023-08-13 17:11:04.536131",
+        "NULL"
+      ],
+      [
+        "4",
+        "Health & Wellness",
+        "health-wellness",
+        "Discover tips for a healthy lifestyle, medical breakthroughs, and wellness advice.",
+        "1",
+        "2023-08-13 17:11:41.857129",
+        "2023-08-13 17:11:41.857129",
+        "NULL"
+      ],
+      [
+        "5",
+        "Entertainment",
+        "entertainment",
+        "Stay updated on celebrity news, movies, music, and the world of entertainment.",
+        "1",
+        "2023-08-13 17:12:18.630076",
+        "2023-08-13 17:12:18.630076",
+        "NULL"
+      ],
+      [
+        "6",
+        "Sports",
+        "sports",
+        "Follow your favorite sports, athletes, and get the latest match results.",
+        "1",
+        "2023-08-13 17:13:07.649077",
+        "2023-08-13 17:13:07.649077",
+        "NULL"
+      ],
+      [
+        "7",
+        "Politics",
+        "politics",
+        "Dive into the world of politics, elections, and government policies.",
+        "1",
+        "2023-08-13 17:13:42.316084",
+        "2023-08-13 17:13:42.316084",
+        "NULL"
+      ],
+      [
+        "8",
+        "Lifestyle",
+        "lifestyle",
+        "Find inspiration for fashion, travel, food, home, and more.",
+        "1",
+        "2023-08-13 17:14:14.629085",
+        "2023-08-13 17:14:14.629085",
+        "NULL"
+      ],
+      [
+        "9",
+        "Opinion & Analysis",
+        "opinion-analysis",
+        "Engage in thought-provoking articles, editorials, and in-depth analysis.",
+        "1",
+        "2023-08-13 17:14:49.269109",
+        "2023-08-13 17:14:49.269109",
+        "NULL"
+      ],
+      [
+        "10",
+        "Technology Reviews",
+        "technology-reviews",
+        "Read reviews of the latest gadgets, software, and tech products.",
+        "1",
+        "2023-08-13 17:15:26.017077",
+        "2023-08-13 17:20:35.808129",
+        "3"
+      ],
+      [
+        "11",
+        "Fashion & Style",
+        "fashion-style",
+        "Stay on top of fashion trends, styling tips, and runway news.",
+        "1",
+        "2023-08-13 17:15:57.331131",
+        "2023-08-13 17:21:01.135084",
+        "8"
+      ],
+      [
+        "12",
+        "Financial Markets",
+        "financial-markets",
+        "Explore insights, analysis, and trends in global financial markets.",
+        "1",
+        "2023-08-13 17:16:32.218133",
+        "2023-08-13 17:16:32.219130",
+        "NULL"
+      ],
+      [
+        "13",
+        "Breaking News",
+        "breaking-news",
+        "blaj b;la b;la",
+        "1",
+        "2023-08-13 17:17:30.197130",
+        "2023-08-13 17:17:30.197130",
+        "NULL"
+      ],
+      [
+        "14",
+        "Environment & Sustainability",
+        "environment-sustainability",
+        "Learn about environmental issues, climate change, and sustainable living.",
+        "1",
+        "2023-08-13 17:18:05.622084",
+        "2023-08-13 17:18:05.622084",
+        "NULL"
+      ],
+      [
+        "15",
+        "Travel & Adventure",
+        "travel-adventure",
+        "Discover the best travel destinations, tips, and thrilling adventures.",
+        "1",
+        "2023-08-13 17:18:42.953080",
+        "2023-08-13 17:22:11.395109",
+        "8"
+      ],
+      [
+        "16",
+        "Tech Gadgets",
+        "tech-gadgets",
+        "Stay informed about the latest tech gadgets and cutting-edge devices.",
+        "1",
+        "2023-08-13 17:19:24.821080",
+        "2023-08-13 17:21:52.624076",
+        "3"
+      ]
+    ]
+  }
+]
