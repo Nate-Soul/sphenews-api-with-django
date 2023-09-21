@@ -21,14 +21,19 @@ class TagSerializer(serializers.ModelSerializer):
 
 
 class ArticleSerializer(serializers.ModelSerializer):
-    author     = serializers.ReadOnlyField(source = 'author.username')
-    categories = CategorySerializer(many=True, read_only=True)
-    tags = TagSerializer(many=True, read_only=True)
+    author      = serializers.ReadOnlyField(source = 'author.username')
+    categories  = CategorySerializer(many=True, read_only=True)
+    tags        = TagSerializer(many=True, read_only=True)
+    featured_image_url = serializers.SerializerMethodField()      
 
     class Meta:
         model = Article
         fields = '__all__'
 
+    def get_featured_image_url(self, obj):
+        if obj.featured_image:
+            return self.context['request'].build_absolute_uri(obj.featured_image.url)
+        return None
 
 class CommentSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source = 'user.username')

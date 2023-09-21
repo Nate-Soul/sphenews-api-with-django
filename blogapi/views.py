@@ -15,7 +15,8 @@ from .serializers import (
     CommentSerializer, 
     TagSerializer, 
     CategorySerializer, 
-    ArticleSerializer
+    ArticleSerializer,
+    LikeSerializer
 )
 from core.permissions import (
     IsOWnerAndStaffOrSuperAdmin,
@@ -31,7 +32,7 @@ class ArticleListAPIView(APIView):
     
     def get(self, request, *args, **kwargs):
         articles   = Article.objects.filter(status='published', visibility='public')
-        serializer = ArticleSerializer(articles, many=True)
+        serializer = ArticleSerializer(articles, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     def post(self, request, *args, **kwargs):
@@ -42,7 +43,9 @@ class ArticleListAPIView(APIView):
             'content': request.data.get('content'),
             'status': request.data.get('status', 'draft'),
             'visibility': request.data.get('visibility', 'public'),
-            'featured_image': request.data.get('featured_image'),
+            'featured_image': request.data.get('featured_image', None),                 
+            'is_feature': request.data.get('is_feature', False),
+            # 'total_likes': request.data.get('total_likes', 0),
             'author': request.user.id,
         }
         serializer = ArticleSerializer(data=data)
@@ -68,11 +71,14 @@ class ArticleDetailAPIView(APIView):
         
     def get(self, request, slug, *args, **kwargs):
         article = self.get_object(slug)
+        
         if article.status == 'draft' and (article.author != request.user and not request.user.is_superuser):
             return Response({"detail": "You don't have permission to view this article."}, status=status.HTTP_403_FORBIDDEN)
-        if article.visibility == 'private' and (article.author != request.user and not request.user.is_superuser and not request.user.isauthenticated):
-            return Response({"detail": "You have to be registered to view this article."}, status=status.HTTP_403_FORBIDDEN)
-        serializer = ArticleSerializer(article)
+        
+        if article.visibility == 'private' and not request.user.isauthenticated:
+            return Response({"detail": "You must be logged in to view this article."}, status=status.HTTP_401_UNAUTHORIZED)        
+        
+        serializer = ArticleSerializer(article, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     def put(self, request, slug, *args, **kwargs):
@@ -86,6 +92,8 @@ class ArticleDetailAPIView(APIView):
             'status': request.data.get('status', article.status),
             'visibility': request.data.get('visibility', article.visibility),
             'featured_image': request.data.get('featured_image', article.featured_image),
+            'is_feature': request.data.get('is_feature', article.is_feature),
+            'total_likes': request.data.get('total_likes', article.total_likes),
             'author': article.author.id,
         }
         
@@ -99,6 +107,7 @@ class ArticleDetailAPIView(APIView):
         article = self.get_object(slug)
         article.delete()
         return Response({'success': f'{article.title} has been deleted'}, status=status.HTTP_204_NO_CONTENT)
+
 
 
 class TagListAPIView(APIView):
@@ -165,6 +174,7 @@ class CategoryListAPIView(APIView):
             'description': request.data.get('description', None),
             'parent': request.data.get('parent', None),
             'is_active': request.data.get('is_active', True),
+            'cover_photo': request.data.get('cover_photo', None),
         }
         serializer = CategorySerializer(data=data)
         if serializer.is_valid():
@@ -192,6 +202,7 @@ class CategoryDetailAPIView(APIView):
             'description': request.data.get('description', category.description),
             'parent': request.data.get('parent', category.parent),
             'is_active': request.data.get('is_active', category.is_active),
+            'cover_photo': request.data.get('cover_photo', category.cover_photo),
         }
         serializer = CategorySerializer(category, data=data, partial=True)
         if serializer.is_valid():
@@ -203,32 +214,6 @@ class CategoryDetailAPIView(APIView):
         category = self.get_object(slug)
         category.delete()
         return Response({'success': f'{category.name} has been deleted'}, status=status.HTTP_204_NO_CONTENT)
-    
-    
-class CommentAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly,]
-
-    def get_object(self, pk):
-        return get_object_or_404(Article, pk=pk)
-    
-    def get(self, request, pk, *args, **kwargs):
-        article = self.get_object(pk)
-        comments = Comment.objects.filter(article = article)
-        serializer = CommentSerializer(comments, many = True)
-        return Response(serializer.data, status = status.HTTP_200_OK)
-
-    def post(self, request, slug, *args, **kwargs):
-        article = self.get_object(slug)
-        data = {
-            'user': request.user.id,
-            'article': article.id,
-            'content': request.data.get('content')
-        }
-        serializer = CommentSerializer(data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status = status.HTTP_201_CREATED)
-        return Response(serializer.errors, status = status.HTTP_400_BAD_REQUEST)
 
 
 class ArticleByAuthorAPIView(APIView):
@@ -256,24 +241,87 @@ class ArticleByCategoryAPIView(APIView):
         serializer = ArticleSerializer(articles, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+  
+class CommentAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly,]
+
+    def get_object(self, slug):
+        return get_object_or_404(Article, slug=slug)
+    
+    def get(self, request, slug, *args, **kwargs):
+        article = self.get_object(slug)
+        comments = Comment.objects.filter(article = article)
+        serializer = CommentSerializer(comments, many = True)
+        return Response(serializer.data, status = status.HTTP_200_OK)
+
+    def post(self, request, slug, *args, **kwargs):
+        article = self.get_object(slug)
+        data = {
+            'user': request.user.id,
+            'article': article.id,
+            'content': request.data.get('content')
+        }
+        serializer = CommentSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status = status.HTTP_201_CREATED)
+        return Response(serializer.errors, status = status.HTTP_400_BAD_REQUEST)
+    
+
+class CommentDetailAPIView(APIView):
+    permission_classes = [IsStaffOrSuperAdminOrReadOnly,]
+    
+    def get_object(self, pk):
+        return get_object_or_404(Comment, pk=pk)
+        
+    def get(self, request, pk, *args, **kwargs):
+        comment = self.get_object(pk)
+        serializer = CommentSerializer(comment)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    def put(self, request, pk, *args, **kwargs):
+        comment = self.get_object(pk)
+        data = {
+            'user': comment.user.id,
+            'article': comment.article.id,
+            'content': request.data.get('content', comment.content)
+        }
+        serializer = CategorySerializer(comment, data=data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def delete(self, request, pk, *args, **kwargs):
+        comment = self.get_object(pk)
+        comment.delete()
+        return Response({'success': f'One comment for article: {comment.article.title} has been deleted'}, status=status.HTTP_204_NO_CONTENT)
+    
     
 class LikeAPIView(APIView):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_object(self, slug):
         return get_object_or_404(Article, slug=slug)
+    
+    
+    def get(self, request, slug, *args, **kwargs):
+        article = self.get_object(slug)
+        likes   = Like.objects.filter(article = article)
+        serializer = LikeSerializer(likes, many = True)
+        return Response(serializer.data, status = status.HTTP_200_OK)
 
     def post(self, request, slug, *args, **kwargs):
         article = self.get_object(slug)
         
         upvoters = article.likes.all().values_list('user', flat = True)
         if request.user.id in upvoters:
-            article.upvote_count -= 1
-            article.upvotes.filter(user = request.user).delete()
+            article.total_likes -= 1
+            article.likes.filter(user = request.user).delete()
         else:
-            article.upvote_count += 1
+            article.total_likes += 1
             upvote = Like(user = request.user, article = article)
             upvote.save()
         article.save()
         serializer = ArticleSerializer(article)
-        return Response(serializer.data, status = status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)

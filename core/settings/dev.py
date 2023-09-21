@@ -16,7 +16,7 @@ EMAIL_HOST = 'smtp.mailtrap.io'
 EMAIL_PORT = 2525
 EMAIL_HOST_USER = '8fec1a1c408e93'
 EMAIL_HOST_PASSWORD = 'eb06629eafe9e7'
-DEFAULT_FROM_EMAIL = 'support@phunbuuble.com'
+DEFAULT_FROM_EMAIL = 'support@sphenews.com'
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",

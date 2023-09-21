@@ -21,6 +21,7 @@ class Category(models.Model):
     description = models.TextField(blank=True, null=True)
     parent      = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE)
     is_active   = models.BooleanField(default=True)
+    cover_photo = models.ImageField(default="images/default.png", upload_to="images/categories/")
     created     = models.DateTimeField(auto_now_add=True)
     modified    = models.DateTimeField(auto_now=True)
     
@@ -58,11 +59,13 @@ class Article(models.Model):
     author          = models.ForeignKey(User, on_delete=models.PROTECT)
     status          = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     visibility      = models.CharField(max_length=20, choices=VISIBILITY_CHOICES, default='public')
-    featured_image  = models.ImageField(default="images/default.png", upload_to="images/articles/")
+    featured_image  = models.ImageField(default="images/default.PNG", upload_to="images/articles/")
+    is_feature      = models.BooleanField(default=False)
     categories      = models.ManyToManyField(Category)
     tags            = models.ManyToManyField(Tag)
     created         = models.DateTimeField(auto_now_add=True)
     modified        = models.DateTimeField(auto_now=True)
+    total_likes           = models.IntegerField(default=0)
     
     def __str__(self):
         return self.title
