@@ -1,4 +1,4 @@
-from django.contrib.auth.models import User
+from django.db import models
 from django.utils.text import slugify
 from django.shortcuts import get_object_or_404
 from rest_framework import status, permissions
@@ -11,6 +11,7 @@ from .models import (
     Category,
     Like,
 )
+from accounts.models import CustomUser as User
 from .serializers import (
     CommentSerializer, 
     TagSerializer, 
@@ -19,24 +20,34 @@ from .serializers import (
     LikeSerializer
 )
 from core.permissions import (
-    IsOWnerAndStaffOrSuperAdmin,
-    IsStaffOrSuperAdminOrReadOnly,
-    #CanViewDraftArticle, 
-    #CanViewPrivateArticle,
+    IsOwnerOrEditorOrAdminOrReadOnly,
 )
 
 
 # Create your views here.
 class ArticleListAPIView(APIView):
-    permission_classes = [IsStaffOrSuperAdminOrReadOnly,]
+    permission_classes = (permissions.IsAuthenticatedOrReadOnly,)
     
     def get(self, request, *args, **kwargs):
-        articles   = Article.objects.filter(status='published', visibility='public')
-        serializer = ArticleSerializer(articles, many=True, context={'request': request})
+        isFeatured = request.GET.get("featured", False)
+        limitBy    = request.GET.get("limit", None)
+        
+        queryset = Article.objects.filter(status='published', visibility='public').order_by('-created')
+        
+        if isFeatured is not False and isFeatured.lower() == "true":
+            queryset = queryset.filter(is_feature=True)
+        
+        if limitBy is not None:
+            limitBy = int(limitBy)
+            if limitBy > 0:
+                queryset = queryset[:limitBy]
+                
+        serializer = ArticleSerializer(queryset, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     def post(self, request, *args, **kwargs):
         data = {
+            'author': request.user.username,
             'title': request.data.get('title'),
             'slug': slugify(request.data.get('title')),
             'excerpt': request.data.get('excerpt'),
@@ -45,8 +56,7 @@ class ArticleListAPIView(APIView):
             'visibility': request.data.get('visibility', 'public'),
             'featured_image': request.data.get('featured_image', None),                 
             'is_feature': request.data.get('is_feature', False),
-            # 'total_likes': request.data.get('total_likes', 0),
-            'author': request.user.id,
+            'total_likes': request.data.get('total_likes', 0),
         }
         serializer = ArticleSerializer(data=data)
         if serializer.is_valid():
@@ -62,9 +72,8 @@ class ArticleListAPIView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
 class ArticleDetailAPIView(APIView):
-    permission_classes = [IsOWnerAndStaffOrSuperAdmin,]
+    permission_classes = (IsOwnerOrEditorOrAdminOrReadOnly,)
     
     def get_object(self, slug):
             return get_object_or_404(Article, slug=slug)
@@ -72,10 +81,10 @@ class ArticleDetailAPIView(APIView):
     def get(self, request, slug, *args, **kwargs):
         article = self.get_object(slug)
         
-        if article.status == 'draft' and (article.author != request.user and not request.user.is_superuser):
+        if article.status == 'draft' and (article.author != request.user and not request.user.role in ['editor', 'admin']):
             return Response({"detail": "You don't have permission to view this article."}, status=status.HTTP_403_FORBIDDEN)
         
-        if article.visibility == 'private' and not request.user.isauthenticated:
+        if article.visibility == 'private' and not (request.user and request.user.role in ['author', 'editor', 'admin']):
             return Response({"detail": "You must be logged in to view this article."}, status=status.HTTP_401_UNAUTHORIZED)        
         
         serializer = ArticleSerializer(article, context={'request': request})
@@ -106,12 +115,10 @@ class ArticleDetailAPIView(APIView):
     def delete(self, request, slug, *args, **kwargs):
         article = self.get_object(slug)
         article.delete()
-        return Response({'success': f'{article.title} has been deleted'}, status=status.HTTP_204_NO_CONTENT)
-
-
+        return Response({'detail': f'{article.title} has been deleted'}, status=status.HTTP_204_NO_CONTENT)
 
 class TagListAPIView(APIView):
-    permission_classes = [IsStaffOrSuperAdminOrReadOnly,]
+    permission_classes = (permissions.IsAuthenticatedOrReadOnly,)
     
     def get(self, request, *args, **kwargs):
         tags   = Tag.objects.all()
@@ -129,9 +136,8 @@ class TagListAPIView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
 class TagDetailAPIView(APIView):
-    permission_classes = [IsStaffOrSuperAdminOrReadOnly,]
+    permission_classes = (permissions.IsAuthenticatedOrReadOnly,)
     
     def get_object(self, slug):
         return get_object_or_404(Tag, slug=slug)
@@ -158,13 +164,25 @@ class TagDetailAPIView(APIView):
         tag.delete()
         return Response({'success': f'{tag.name} has been deleted'}, status=status.HTTP_204_NO_CONTENT)
 
-
 class CategoryListAPIView(APIView):
-    permission_classes = [IsStaffOrSuperAdminOrReadOnly,]
+    permission_classes = (permissions.IsAuthenticatedOrReadOnly)
     
     def get(self, request, *args, **kwargs):
-        categories = Category.objects.filter(is_active=True)
-        serializer = CategorySerializer(categories, many=True)
+        top   = request.GET.get("top", False)
+        limit = request.GET.get("limit", None)
+        
+        queryset = Category.objects.filter(is_active=True)
+        
+        if top is not False and top.lower() == "true":
+            queryset = queryset.annotate(article_count=models.Count('articles'))
+            queryset = queryset.order_by('-article_count')
+        
+        if limit is not None:
+            limit = int(limit)
+            if limit > 0:
+                queryset = queryset[:limit]
+        
+        serializer = CategorySerializer(queryset, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     def post(self, request, *args, **kwargs):
@@ -182,16 +200,15 @@ class CategoryListAPIView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
 class CategoryDetailAPIView(APIView):
-    permission_classes = [IsStaffOrSuperAdminOrReadOnly,]
+    permission_classes = (permissions.IsAuthenticatedOrReadOnly)
     
     def get_object(self, slug):
         return get_object_or_404(Category, slug=slug)
         
     def get(self, request, slug, *args, **kwargs):
         category = self.get_object(slug)
-        serializer = CategorySerializer(category)
+        serializer = CategorySerializer(category, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     def put(self, request, slug, *args, **kwargs):
@@ -215,35 +232,37 @@ class CategoryDetailAPIView(APIView):
         category.delete()
         return Response({'success': f'{category.name} has been deleted'}, status=status.HTTP_204_NO_CONTENT)
 
-
 class ArticleByAuthorAPIView(APIView):
-    # permission_classes = [permissions.IsAuthenticated,] 
+    
+    permission_classes = (permissions.AllowAny,)
     
     def get(self, request, username, *args, **kwargs):
         author = get_object_or_404(User, username=username)
         articles = Article.objects.filter(author=author).filter(status="published", visibility="public")
-        serializer = ArticleSerializer(articles, many=True)
+        serializer = ArticleSerializer(articles, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 class ArticleByTagAPIView(APIView):
+    permission_classes = (permissions.AllowAny,)
     
     def get(self, request, tag_slug, *args, **kwargs):
         tag = get_object_or_404(Tag, slug=tag_slug)
         articles = Article.objects.filter(tags=tag).filter(status="published", visibility="public")
-        serializer = ArticleSerializer(articles, many=True)
+        serializer = ArticleSerializer(articles, many=True, context={'req'})
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 class ArticleByCategoryAPIView(APIView):
     
+    permission_classes = (permissions.AllowAny,)
+    
     def get(self, request, cat_slug, *args, **kwargs):
         category = get_object_or_404(Category, slug=cat_slug)
         articles = Article.objects.filter(categories=category).filter(status="published", visibility="public")
-        serializer = ArticleSerializer(articles, many=True)
+        serializer = ArticleSerializer(articles, many=True,  context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-  
 class CommentAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly,]
+    permission_classes = (permissions.IsAuthenticatedOrReadOnly,)
 
     def get_object(self, slug):
         return get_object_or_404(Article, slug=slug)
@@ -267,9 +286,8 @@ class CommentAPIView(APIView):
             return Response(serializer.data, status = status.HTTP_201_CREATED)
         return Response(serializer.errors, status = status.HTTP_400_BAD_REQUEST)
     
-
 class CommentDetailAPIView(APIView):
-    permission_classes = [IsStaffOrSuperAdminOrReadOnly,]
+    permission_classes = (IsOwnerOrEditorOrAdminOrReadOnly,)
     
     def get_object(self, pk):
         return get_object_or_404(Comment, pk=pk)
@@ -297,13 +315,11 @@ class CommentDetailAPIView(APIView):
         comment.delete()
         return Response({'success': f'One comment for article: {comment.article.title} has been deleted'}, status=status.HTTP_204_NO_CONTENT)
     
-    
 class LikeAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = (permissions.IsAuthenticatedOrReadOnly,)
 
     def get_object(self, slug):
         return get_object_or_404(Article, slug=slug)
-    
     
     def get(self, request, slug, *args, **kwargs):
         article = self.get_object(slug)

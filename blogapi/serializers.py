@@ -6,25 +6,31 @@ from .models import (
     Tag,
     Like
 )
-
+from accounts.models import CustomUser as UserModel
 
 class CategorySerializer(serializers.ModelSerializer):
+    
+    cover_photo_url = serializers.SerializerMethodField()
+    
     class Meta:
         model = Category
         fields = '__all__'
 
+    def get_cover_photo_url(self, obj):
+        if obj.cover_photo:
+            return self.context['request'].build_absolute_uri(obj.cover_photo.url)
+        return None
 
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tag
         fields = '__all__'
 
-
 class ArticleSerializer(serializers.ModelSerializer):
-    author      = serializers.ReadOnlyField(source = 'author.username')
+    author      = serializers.SlugRelatedField(slug_field='username', queryset=UserModel.objects.all())
     categories  = CategorySerializer(many=True, read_only=True)
     tags        = TagSerializer(many=True, read_only=True)
-    featured_image_url = serializers.SerializerMethodField()      
+    featured_image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Article
