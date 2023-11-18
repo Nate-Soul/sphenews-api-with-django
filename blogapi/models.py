@@ -1,7 +1,9 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 # from django.urls import reverse
-from django.contrib.auth.models import User
+from accounts.models import CustomUser as UserModel
+
+
 
 # Create your models here.
 class Tag(models.Model):
@@ -21,7 +23,7 @@ class Category(models.Model):
     description = models.TextField(blank=True, null=True)
     parent      = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE)
     is_active   = models.BooleanField(default=True)
-    cover_photo = models.ImageField(default="images/default.png", upload_to="images/categories/")
+    cover_photo = models.ImageField(default="images/default.PNG", upload_to="images/categories/")
     created     = models.DateTimeField(auto_now_add=True)
     modified    = models.DateTimeField(auto_now=True)
     
@@ -56,16 +58,21 @@ class Article(models.Model):
     )
     excerpt         = models.TextField(verbose_name=_("Article excerpt"), max_length=300)
     content         = models.TextField(verbose_name=_("Article body"))
-    author          = models.ForeignKey(User, on_delete=models.PROTECT)
+    author          = models.ForeignKey(UserModel, on_delete=models.PROTECT)
     status          = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     visibility      = models.CharField(max_length=20, choices=VISIBILITY_CHOICES, default='public')
-    featured_image  = models.ImageField(default="images/default.PNG", upload_to="images/articles/")
+    featured_image  = models.ImageField(
+        upload_to="images/articles/",
+        default="images/default.png",
+        null=True,
+        blank=True
+    )
     is_feature      = models.BooleanField(default=False)
-    categories      = models.ManyToManyField(Category)
+    categories      = models.ManyToManyField(Category, related_name="articles")
     tags            = models.ManyToManyField(Tag)
     created         = models.DateTimeField(auto_now_add=True)
     modified        = models.DateTimeField(auto_now=True)
-    total_likes           = models.IntegerField(default=0)
+    total_likes     = models.IntegerField(default=0)
     
     def __str__(self):
         return self.title
@@ -73,16 +80,19 @@ class Article(models.Model):
     
 class Comment(models.Model):
     
-    user    = models.ForeignKey(User, related_name='comments', on_delete=models.CASCADE)
+    user    = models.ForeignKey(UserModel, related_name='comments', on_delete=models.CASCADE)
     article = models.ForeignKey(Article, related_name='comments', on_delete=models.CASCADE)
     content = models.TextField()
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     
     def __str__(self):
-        return f'Comment by {self.author.username} on {self.article.title}'
+        return f'Comment by {self.user.username} on {self.article.title}'
     
 
 class Like(models.Model):
-    user    = models.ForeignKey(User, related_name='likes', on_delete=models.CASCADE)
+    user    = models.ForeignKey(UserModel, related_name='likes', on_delete=models.CASCADE)
     article = models.ForeignKey(Article, related_name='likes', on_delete=models.CASCADE)
+    
+    def __str__(self):
+        return f'{self.article.title} Liked by {self.user.username}'

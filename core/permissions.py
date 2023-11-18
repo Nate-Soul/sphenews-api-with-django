@@ -1,40 +1,47 @@
 from rest_framework import permissions
 
-class IsOWnerAndStaffOrSuperAdmin(permissions.BasePermission):
-    def has_permission(self, request, view):
-        if request.method == 'GET':
-            return True
-        if request.user and request.user.is_authenticated:
-            return True if request.user.is_staff or request.user.is_superuser else False
-        return False
-    
-    def has_object_permission(self, request, view, obj):
-        if request.method == 'GET':
-            return True
-        if request.user.is_authenticated:
-            if obj.author == request.user and request.user.is_staff or request.user.is_superuser:
-                return True
-        return False
-    
-    
-class IsStaffOrSuperAdminOrReadOnly(permissions.BasePermission):
-    def has_permission(self, request, view): 
-        if request.method == 'GET':
-            return True
-        if request.user.is_authenticated:
-            return True if request.user.is_staff or request.user.is_superuser else False
-        return False
+
+class IsOwner(permissions.BasePermission):
+    """
+   Custom permission to allow access only to the owner.
+    """
+    pass
+
+class IsEditor(permissions.BasePermission):
+    """
+   Custom permission to allow access only to the editors.
+    """
+    pass
+
+class IsAdmin(permissions.BasePermission):
+    """
+   Custom permission to allow access only to the admin.
+    """
+    pass
+
+class IsOwnerOrAdmin(permissions.BasePermission):
+    """
+    Custom permission to allow access to only the owner or admin
+    """
+    pass
+
+class IsOwnerOrAdminOrReadOnly(permissions.BasePermission):
+    """
+    Custom permission to allow access to owner or admin but grants access to anonymous users to read content
+    """
+    pass
+                
     
 
-class CanViewDraftArticle(permissions.BasePermission):
-    def has_object_permission(self, request, view, obj):
-        if request.user.is_authenticated:
-            return obj.author == request.user or request.user.is_superuser
-        return False
-    
+class IsOwnerOrEditorOrAdmin(permissions.BasePermission):
+    """
+    Custom permission to allow access to owner, editors and admins    
+    """
+    pass
 
-class CanViewPrivateArticle(permissions.BasePermission):
-    def has_object_permission(self, request, view, obj):
-        if request.user.is_authenticated:
-            return obj.visibility == 'private' or request.user.is_superuser
-        return False
+class IsOwnerOrEditorOrAdminOrReadOnly(permissions.BasePermission):
+    """
+    Custom permission to allow read-only access to anyone (GET), but allows access to owner, editors or admins
+    """
+    
+    pass
